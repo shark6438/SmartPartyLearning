@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-pptx
+langchain
+langchain-community
+langchain-chroma
+zhipuai
+edge-tts
+python-multipart
+pydantic
+chromadb

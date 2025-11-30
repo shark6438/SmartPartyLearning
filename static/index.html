@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧党建学习系统 - AI赋能版</title>
+    <!-- 引入 Bootstrap 5 样式 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Vue 3 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: "Microsoft YaHei", sans-serif; }
+        .header { background: linear-gradient(135deg, #ce1126 0%, #a30e1d 100%); color: white; padding: 40px 0; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(206, 17, 38, 0.3); }
+        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        .ppt-text-box { background-color: #f8f9fa; border-left: 4px solid #ce1126; padding: 15px; font-size: 0.9rem; color: #555; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+        .ai-script-box { font-size: 1.05rem; line-height: 1.8; color: #333; }
+        .qa-section { background-color: #eef7fa; border-radius: 8px; padding: 15px; margin-top: 20px; border: 1px solid #bfe2e9; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .btn-upload { background-color: #ce1126; border-color: #ce1126; padding: 10px 30px; font-size: 1.1rem; }
+        .btn-upload:hover { background-color: #a30e1d; border-color: #a30e1d; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 头部 -->
+        <div class="header text-center">
+            <h1 class="fw-bold">☭ 智慧党建理论学习系统</h1>
+            <p class="lead mt-2">AI 驱动 · RAG 权威知识检索 · 智能语音讲师</p>
+        </div>
+
+        <div class="container">
+            <!-- 上传区域 -->
+            <div class="row justify-content-center mb-5">
+                <div class="col-md-8">
+                    <div class="card p-5 shadow-sm">
+                        <h3 class="mb-4 text-center text-secondary">📄 上传学习材料 (PPT)</h3>
+                        <div class="input-group mb-3 input-group-lg">
+                            <input type="file" class="form-control" ref="fileInput" accept=".pptx">
+                            <button class="btn btn-upload text-white" type="button" @click="uploadPPT" :disabled="loading">
+                                {{ loading ? '正在解析中...' : '开始 AI 解析' }}
+                            </button>
+                        </div>
+                        <div class="text-center text-muted small">
+                            支持 .pptx 格式，系统将自动提取核心观点、检索权威政策库，并生成语音讲解。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果展示区域 -->
+            <div v-if="results.length > 0" class="row animate__animated animate__fadeIn">
+                <div class="col-12 mb-4">
+                    <h3 class="border-bottom pb-2 border-danger text-danger">📚 解析结果与智能导学</h3>
+                </div>
+                
+                <div class="col-md-12" v-for="(item, index) in results" :key="index">
+                    <div class="card p-4">
+                        <div class="row g-4">
+                            <!-- 左侧：PPT原始内容 -->
+                            <div class="col-md-4">
+                                <h5 class="text-danger fw-bold mb-3">
+                                    <span class="badge bg-danger">第 {{ item.page }} 页</span> 原文提取
+                                </h5>
+                                <div class="ppt-text-box">
+                                    {{ item.ppt_text }}
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：AI 生成的讲解与互动 -->
+                            <div class="col-md-8">
+                                <h5 class="text-primary fw-bold mb-3">
+                                    🤖 AI 讲师解读 <small class="text-muted fw-normal">(基于权威知识库 RAG)</small>
+                                </h5>
+                                
+                                <!-- 讲解词 -->
+                                <div class="ai-script-box">
+                                    {{ item.ai_script }}
+                                </div>
+
+                                <!-- 音频播放器 -->
+                                <div class="mt-3 bg-light p-3 rounded d-flex align-items-center border">
+                                    <span class="badge bg-success me-3">语音播报</span>
+                                    <audio controls :src="item.audio_url" style="width: 100%; height: 36px;"></audio>
+                                </div>
+
+                                <!-- ======= 新增：智能问答交互区 ======= -->
+                                <div class="qa-section">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h6 class="text-info m-0 fw-bold">🙋‍♂️ 互动问答助手</h6>
+                                        <small class="ms-2 text-muted">对本页内容有疑问？AI 助教为您实时解答。</small>
+                                    </div>
+                                    
+                                    <!-- 提问输入框 -->
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" 
+                                               placeholder="请输入您的问题，例如：'这段提到的新质生产力是什么意思？'" 
+                                               v-model="item.userQuestion" 
+                                               @keyup.enter="askAI(item)">
+                                        <button class="btn btn-info text-white" type="button" 
+                                                @click="askAI(item)" 
+                                                :disabled="item.asking">
+                                            {{ item.asking ? '思考中...' : '提问' }}
+                                        </button>
+                                    </div>
+
+                                    <!-- AI 回答展示 -->
+                                    <div v-if="item.aiAnswer" class="mt-3 p-3 bg-white border rounded shadow-sm" style="border-left: 5px solid #0dcaf0;">
+                                        <div class="d-flex mb-1">
+                                            <strong>🧠 助教回答：</strong>
+                                        </div>
+                                        <p class="mb-0 text-dark" style="font-size: 0.95rem; white-space: pre-wrap;">{{ item.aiAnswer }}</p>
+                                    </div>
+                                </div>
+                                <!-- ================================== -->
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading 遮罩层 -->
+        <div v-if="loading" class="loading-overlay">
+            <div class="spinner-grow text-danger" style="width: 4rem; height: 4rem;" role="status"></div>
+            <h3 class="mt-4 text-danger fw-bold">系统正在全速运转...</h3>
+            <p class="text-muted fs-5">正在进行 RAG 知识库检索 · 讲稿生成 · 语音合成</p>
+            <p class="small text-secondary">(首次运行可能需要几十秒构建索引，请耐心等待)</p>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+
+        createApp({
+            setup() {
+                const loading = ref(false);
+                const results = ref([]);
+                const fileInput = ref(null);
+
+                // 上传 PPT 的逻辑
+                const uploadPPT = async () => {
+                    const file = fileInput.value.files[0];
+                    if (!file) {
+                        alert("⚠️ 请先选择一个 PPT 文件！");
+                        return;
+                    }
+
+                    loading.value = true;
+                    results.value = []; // 清空之前的结果
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    try {
+                        const response = await fetch("/upload_ppt", {
+                            method: "POST",
+                            body: formData
+                        });
+
+                        const json = await response.json();
+                        
+                        if (json.status === "success") {
+                            // 为每一项数据增加问答相关的状态变量
+                            results.value = json.data.map(item => ({
+                                ...item,
+                                userQuestion: "", // 用户输入的问题
+                                aiAnswer: null,   // AI 的回答
+                                asking: false     // 是否正在提问中
+                            }));
+                        } else {
+                            alert("❌ 解析失败：" + json.message);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        alert("❌ 网络请求出错，请检查后端服务是否启动。");
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // 智能问答的逻辑
+                const askAI = async (item) => {
+                    if (!item.userQuestion || item.userQuestion.trim() === "") {
+                        alert("请输入您的问题！");
+                        return;
+                    }
+
+                    item.asking = true;
+                    item.aiAnswer = null; // 清空旧回答
+
+                    try {
+                        const res = await fetch("/ask_ai", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                question: item.userQuestion,
+                                ppt_context: item.ppt_text // 把当前PPT页内容传过去作为上下文
+                            })
+                        });
+                        const json = await res.json();
+                        if (json.status === "success") {
+                            item.aiAnswer = json.answer;
+                        } else {
+                            alert("回答失败：" + json.message);
+                        }
+                    } catch (e) {
+                        alert("网络请求失败");
+                    } finally {
+                        item.asking = false;
+                    }
+                };
+
+                return {
+                    loading,
+                    results,
+                    fileInput,
+                    uploadPPT,
+                    askAI
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

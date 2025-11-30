@@ -1,0 +1,20 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 虚拟环境 (如果有)
+venv/
+.env
+
+# 临时生成的数据
+chroma_db/
+static/audio/*
+temp_*.pptx
+
+# 知识库里的具体文件 (可选：如果你想让别人看你的空项目，可以忽略 txt；
+# 但为了演示效果，建议保留 knowledge_db 里的 txt，所以下面这行我不写)
+# knowledge_db/
+
+# 操作系统垃圾文件
+.DS_Store
+Thumbs.db
