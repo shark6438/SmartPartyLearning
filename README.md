@@ -23,7 +23,7 @@
 
 ### 1. 克隆项目
 ```bash
-git clone https://github.com/你的用户名/SmartPartyLearning.git
+git clone https://github.com/shark6438/SmartPartyLearning.git
 cd SmartPartyLearning
 
 2. 安装依赖
